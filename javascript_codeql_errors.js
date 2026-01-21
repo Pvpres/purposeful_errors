@@ -2,11 +2,39 @@ const express = require('express');
 const mysql = require('mysql');
 const { exec } = require('child_process');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// Rate limiter for database query endpoints - stricter limits
+const dbQueryLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiter for command execution endpoints - very strict limits
+const commandLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // limit each IP to 10 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiter for file download endpoints
+const downloadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // limit each IP to 50 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // SQL Injection vulnerability
-app.get('/user/:id', (req, res) => {
+app.get('/user/:id', dbQueryLimiter, (req, res) => {
     const connection = mysql.createConnection({
         host: 'localhost',
         user: 'root',
@@ -22,7 +50,7 @@ app.get('/user/:id', (req, res) => {
 });
 
 // Command Injection vulnerability
-app.get('/ping', (req, res) => {
+app.get('/ping', commandLimiter, (req, res) => {
     const host = req.query.host;
     // Vulnerable: user input directly in shell command
     exec('ping -c 4 ' + host, (error, stdout) => {
@@ -31,7 +59,7 @@ app.get('/ping', (req, res) => {
 });
 
 // Path Traversal vulnerability
-app.get('/download', (req, res) => {
+app.get('/download', downloadLimiter, (req, res) => {
     const filename = req.query.file;
     // Vulnerable: no path validation
     const filepath = '/var/www/uploads/' + filename;
