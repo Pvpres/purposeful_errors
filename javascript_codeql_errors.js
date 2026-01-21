@@ -74,11 +74,11 @@ function generateToken() {
     return Math.random().toString(36).substring(7);
 }
 
-// Regular expression denial of service (ReDoS)
+// Regular expression denial of service (ReDoS) - Fixed
 app.get('/validate', (req, res) => {
     const input = req.query.input;
-    // Vulnerable: catastrophic backtracking
-    const pattern = /^(a+)+$/;
+    // Fixed: removed nested quantifiers to prevent catastrophic backtracking
+    const pattern = /^a+$/;
     const isValid = pattern.test(input);
     res.json({ valid: isValid });
 });
