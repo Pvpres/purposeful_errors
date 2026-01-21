@@ -45,12 +45,112 @@ app.get('/search', (req, res) => {
     res.send('<h1>Results for: ' + searchTerm + '</h1>');
 });
 
-// eval() on user input
+// Safe mathematical expression parser (no eval/Function)
+function safeEvaluate(expression) {
+    if (typeof expression !== 'string') {
+        throw new Error('Expression must be a string');
+    }
+    
+    const tokens = tokenize(expression);
+    const result = parseExpression(tokens);
+    
+    if (tokens.length > 0) {
+        throw new Error('Unexpected token: ' + tokens[0]);
+    }
+    
+    return result;
+}
+
+function tokenize(expr) {
+    const tokens = [];
+    const regex = /(\d+\.?\d*|\+|\-|\*|\/|\(|\))/g;
+    let match;
+    
+    // Remove whitespace
+    expr = expr.replace(/\s+/g, '');
+    
+    // Validate that expression only contains allowed characters
+    if (!/^[\d+\-*/().]+$/.test(expr)) {
+        throw new Error('Invalid characters in expression');
+    }
+    
+    while ((match = regex.exec(expr)) !== null) {
+        tokens.push(match[0]);
+    }
+    
+    return tokens;
+}
+
+function parseExpression(tokens) {
+    let result = parseTerm(tokens);
+    
+    while (tokens.length > 0 && (tokens[0] === '+' || tokens[0] === '-')) {
+        const op = tokens.shift();
+        const term = parseTerm(tokens);
+        result = op === '+' ? result + term : result - term;
+    }
+    
+    return result;
+}
+
+function parseTerm(tokens) {
+    let result = parseFactor(tokens);
+    
+    while (tokens.length > 0 && (tokens[0] === '*' || tokens[0] === '/')) {
+        const op = tokens.shift();
+        const factor = parseFactor(tokens);
+        result = op === '*' ? result * factor : result / factor;
+    }
+    
+    return result;
+}
+
+function parseFactor(tokens) {
+    if (tokens.length === 0) {
+        throw new Error('Unexpected end of expression');
+    }
+    
+    const token = tokens.shift();
+    
+    // Handle negative numbers
+    if (token === '-') {
+        return -parseFactor(tokens);
+    }
+    
+    // Handle positive sign
+    if (token === '+') {
+        return parseFactor(tokens);
+    }
+    
+    // Handle parentheses
+    if (token === '(') {
+        const result = parseExpression(tokens);
+        if (tokens.length === 0 || tokens.shift() !== ')') {
+            throw new Error('Missing closing parenthesis');
+        }
+        return result;
+    }
+    
+    // Handle numbers
+    const num = parseFloat(token);
+    if (isNaN(num)) {
+        throw new Error('Invalid number: ' + token);
+    }
+    
+    return num;
+}
+
 app.post('/calculate', (req, res) => {
     const expression = req.body.expr;
-    // Vulnerable: eval on user-controlled input
-    const result = eval(expression);
-    res.json({ result: result });
+    try {
+        const result = safeEvaluate(expression);
+        if (!isFinite(result)) {
+            return res.status(400).json({ error: 'Result is not a finite number' });
+        }
+        res.json({ result: result });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 // Hard-coded credentials
