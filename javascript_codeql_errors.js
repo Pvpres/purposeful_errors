@@ -5,6 +5,18 @@ const fs = require('fs');
 
 const app = express();
 
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') {
+        return '';
+    }
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // SQL Injection vulnerability
 app.get('/user/:id', (req, res) => {
     const connection = mysql.createConnection({
@@ -38,11 +50,11 @@ app.get('/download', (req, res) => {
     res.sendFile(filepath);
 });
 
-// XSS vulnerability
+// XSS vulnerability (FIXED)
 app.get('/search', (req, res) => {
     const searchTerm = req.query.q;
-    // Vulnerable: reflecting user input without sanitization
-    res.send('<h1>Results for: ' + searchTerm + '</h1>');
+    // Fixed: HTML-encode user input to prevent XSS
+    res.send('<h1>Results for: ' + escapeHtml(searchTerm) + '</h1>');
 });
 
 // eval() on user input
