@@ -1,0 +1,25 @@
+name: "Devin Security Sentinel"
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  security-remediation:
+    name: Run Security Sentinel
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: read
+
+    steps:
+      - name: Run Devin Security Sentinel
+        uses: Pvpres/devin-security-sentinel@main
+        with:
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          github_token: ${{ secrets.GH_TOKEN }}
+          devin_api_key: ${{ secrets.DEVIN_API_KEY }}
+          slack_bot_token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack_channel_id: C0AAGN32N7K
