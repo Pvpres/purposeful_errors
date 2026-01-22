@@ -44,7 +44,13 @@ def hash_password(password):
     import secrets
     # Secure: using PBKDF2 with SHA-256, random salt, and sufficient iterations
     salt = secrets.token_bytes(32)
-    password_hash = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, 100000)
+    password_hash = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode(),
+        salt,
+        iterations=600000  # OWASP recommended minimum for PBKDF2-SHA256
+    )
+    # Return salt and hash together (both needed for verification)
     return salt.hex() + ':' + password_hash.hex()
 
 # Use of eval on user input
