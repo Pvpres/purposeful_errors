@@ -45,12 +45,42 @@ app.get('/search', (req, res) => {
     res.send('<h1>Results for: ' + searchTerm + '</h1>');
 });
 
-// eval() on user input
+// Safe math expression evaluator
 app.post('/calculate', (req, res) => {
     const expression = req.body.expr;
-    // Vulnerable: eval on user-controlled input
-    const result = eval(expression);
-    res.json({ result: result });
+    // Security fix: validate input to only allow safe mathematical expressions
+    // Only allow digits, operators, parentheses, decimal points, and spaces
+    const safePattern = /^[\d\s+\-*/%().]+$/;
+    
+    if (!expression || typeof expression !== 'string') {
+        return res.status(400).json({ error: 'Invalid expression' });
+    }
+    
+    if (!safePattern.test(expression)) {
+        return res.status(400).json({ error: 'Invalid characters in expression' });
+    }
+    
+    // Additional validation: check for balanced parentheses
+    let parenCount = 0;
+    for (const char of expression) {
+        if (char === '(') parenCount++;
+        if (char === ')') parenCount--;
+        if (parenCount < 0) {
+            return res.status(400).json({ error: 'Unbalanced parentheses' });
+        }
+    }
+    if (parenCount !== 0) {
+        return res.status(400).json({ error: 'Unbalanced parentheses' });
+    }
+    
+    try {
+        // Use Function constructor with validated input instead of eval
+        // This is safe because we've strictly validated the input above
+        const result = Function('"use strict"; return (' + expression + ')')();
+        res.json({ result: result });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to evaluate expression' });
+    }
 });
 
 // Hard-coded credentials
