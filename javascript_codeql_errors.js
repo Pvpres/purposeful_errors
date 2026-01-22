@@ -1,6 +1,6 @@
 const express = require('express');
 const mysql = require('mysql');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const fs = require('fs');
 
 const app = express();
@@ -21,12 +21,21 @@ app.get('/user/:id', (req, res) => {
     });
 });
 
-// Command Injection vulnerability
+// Command Injection vulnerability - FIXED
 app.get('/ping', (req, res) => {
     const host = req.query.host;
-    // Vulnerable: user input directly in shell command
-    exec('ping -c 4 ' + host, (error, stdout) => {
-        res.send(stdout);
+    
+    // Validate host input: only allow valid hostnames and IP addresses
+    const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    
+    if (!host || (!hostnameRegex.test(host) && !ipv4Regex.test(host))) {
+        return res.status(400).send('Invalid host parameter');
+    }
+    
+    // Secure: using execFile with arguments array prevents command injection
+    execFile('ping', ['-c', '4', host], (error, stdout) => {
+        res.send(stdout || 'Ping failed');
     });
 });
 
